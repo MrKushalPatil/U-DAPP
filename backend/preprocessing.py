@@ -138,7 +138,7 @@ def preprocess(df, roles, choices):
 
         choice = choices.get(col, ("", "1"))[1]
 
-        # skip identifiers
+        # Skip identifiers
         if role in ["id", "name"]:
             continue
 
@@ -152,32 +152,35 @@ def preprocess(df, roles, choices):
                 df[[col]] = scaler.fit_transform(df[[col]])
 
         # ============================
-        # CATEGORY (FIXED SAFE VERSION)
+        # CATEGORY (FIXED)
         # ============================
         elif role == "category":
 
             df[col] = df[col].astype(str).fillna("unknown")
 
-            dummies = None  # IMPORTANT FIX
+            # 🔥 KEEP AS IT IS
+            if choice == "0":
+                continue
 
-            if choice == "1":
-                dummies = pd.get_dummies(df[col], prefix=col, drop_first=False)
+            # 🔥 ENCODE AS 0/1
+            elif choice == "1":
+                dummies = pd.get_dummies(df[col], prefix=col, drop_first=False).astype(int)
 
+            # 🔥 ENCODE AS TRUE/FALSE
             elif choice == "2":
                 dummies = pd.get_dummies(df[col], prefix=col, drop_first=False).astype(bool)
 
             else:
-                # fallback safety
-                dummies = pd.get_dummies(df[col], prefix=col)
+                dummies = pd.get_dummies(df[col], prefix=col, drop_first=False).astype(int)
 
-            if dummies is not None:
-                df = df.drop(columns=[col])
-                df = pd.concat([df, dummies], axis=1)
+            # Apply transformation
+            df = df.drop(columns=[col])
+            df = pd.concat([df, dummies], axis=1)
 
-                # OPTIONAL: update roles safely (prevents UI mismatch bugs)
-                roles.pop(col, None)
-                for new_col in dummies.columns:
-                    roles[new_col] = "category"
+            # Update roles
+            roles.pop(col, None)
+            for new_col in dummies.columns:
+                roles[new_col] = "category"
 
         # ============================
         # TEXT

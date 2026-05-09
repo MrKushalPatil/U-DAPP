@@ -1,5 +1,20 @@
 import pandas as pd
 import numpy as np
+import json
+import os
+
+
+# ================================
+# 🔥 MEMORY CONFIG (NEW)
+# ================================
+MEMORY_FILE = "role_memory.json"
+
+
+def load_memory():
+    if os.path.exists(MEMORY_FILE):
+        with open(MEMORY_FILE, "r") as f:
+            return json.load(f)
+    return {"name_patterns": {}, "value_patterns": {}}
 
 
 # ================================
@@ -43,7 +58,6 @@ def detect_split_date_columns(df):
         elif "year" in c:
             year_col = col
 
-    # At least year + month required
     if year_col and month_col:
         return True, {"day": day_col, "month": month_col, "year": year_col}
 
@@ -145,13 +159,16 @@ def detect_column_roles(df):
     roles = {}
     confidences = {}
 
+    # 🔥 LOAD MEMORY (NEW)
+    memory = load_memory()
+    name_patterns = memory.get("name_patterns", {})
+    value_patterns = memory.get("value_patterns", {})
+
     # 🔥 STEP 1: Detect split date columns first
     is_split_date, date_parts = detect_split_date_columns(df)
 
     if is_split_date:
         for col in df.columns:
-            col_lower = col.lower()
-
             if (
                 (date_parts["day"] and col == date_parts["day"]) or
                 (date_parts["month"] and col == date_parts["month"]) or
@@ -161,7 +178,39 @@ def detect_column_roles(df):
                 confidences[col] = 0.95
                 continue
 
-    # 🔥 STEP 2: Normal column classification
+    # 🔥 STEP 2: Adaptive Learning Detection (NEW)
+    for col in df.columns:
+
+        if col in roles:
+            continue
+
+        col_lower = col.lower()
+
+        # 🔹 Name-based match
+        for role, keywords in name_patterns.items():
+            if any(keyword in col_lower for keyword in keywords):
+                roles[col] = role
+                confidences[col] = "learned-name"
+                break
+
+        if col in roles:
+            continue
+
+        # 🔹 Value-based match
+        unique_vals = df[col].dropna().astype(str).str.lower().unique()
+        unique_vals_set = set(unique_vals[:10])
+
+        for role, patterns in value_patterns.items():
+            for pattern in patterns:
+                if set(pattern).issubset(unique_vals_set):
+                    roles[col] = role
+                    confidences[col] = "learned-value"
+                    break
+
+        if col in roles:
+            continue
+
+    # 🔥 STEP 3: Normal column classification (UNCHANGED)
     for col in df.columns:
 
         if col in roles:

@@ -21,7 +21,20 @@ def auto_train_models(df, target):
     X = df.drop(columns=[target])
     y = df[target]
 
-    problem = detect_problem_type(df, target)
+    # =========================
+    # 🔥 HANDLE NON-NUMERIC DATA (ADDED)
+    # =========================
+
+    # Convert categorical/text columns into numeric using one-hot encoding
+    X = pd.get_dummies(X, drop_first=True)
+
+    # Encode target column if it's categorical
+    if y.dtype == "object":
+        y = y.astype("category").cat.codes
+
+    # =========================
+
+    problem = detect_problem_type(pd.concat([X, y], axis=1), target)
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 
@@ -112,3 +125,10 @@ def auto_train_models(df, target):
             data=f,
             file_name=f"{best_model_name}.pkl"
         )
+
+    # 🔥 RETURN ADDED
+    return {
+        "results": results,
+        "best_model_name": best_model_name,
+        "model_path": model_path
+    }
