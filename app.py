@@ -1,4 +1,6 @@
 import streamlit as st
+import json
+import os
 
 from utils.helpers import load_dataset, download_csv
 
@@ -34,7 +36,6 @@ menu = st.sidebar.radio(
     "Navigation",
     ["Upload Data", "Preprocessing", "EDA Report", "Visualization"]
 )
-
 
 # =========================
 # 🔹 SESSION STATE
@@ -98,7 +99,7 @@ elif menu == "Preprocessing":
 
         for col in df.columns:
             updated_roles[col] = st.selectbox(
-                f"{col} (Confidence: {confidences[col]})",
+                f"{ col}",
                 role_options,
                 index=role_options.index(roles[col])
             )
@@ -138,7 +139,7 @@ elif menu == "Preprocessing":
                         f"{col} Category Handling",
                         ["Keep","Encode 0/1","Encode True/False"]
                     )
-                    choices[col] = ("category", str(["Keep","Encode 0/1","Encode True/False"].index(c)+1))
+                    choices[col] = ("category", str(["Keep","Encode 0/1","Encode True/False"].index(c)))
 
                 elif role == "numeric":
                     c = st.selectbox(f"{col} Scaling", ["No","Yes"])
@@ -166,6 +167,37 @@ elif menu == "Preprocessing":
 
                 download_csv(df_processed)
 
+                # =========================
+                # 🔥 SAVE LEARNING (NEW)
+                # =========================
+                MEMORY_FILE = "role_memory.json"
+
+                if os.path.exists(MEMORY_FILE):
+                    with open(MEMORY_FILE, "r") as f:
+                        memory = json.load(f)
+                else:
+                    memory = {"name_patterns": {}, "value_patterns": {}}
+
+                for col, role in updated_roles.items():
+
+                    if role in ["id", "name"]:
+                        continue
+
+                    # Name patterns
+                    memory["name_patterns"].setdefault(role, [])
+                    if col.lower() not in memory["name_patterns"][role]:
+                        memory["name_patterns"][role].append(col.lower())
+
+                    # Value patterns
+                    vals = df[col].dropna().astype(str).str.lower().unique()[:5].tolist()
+
+                    memory["value_patterns"].setdefault(role, [])
+                    if vals and vals not in memory["value_patterns"][role]:
+                        memory["value_patterns"][role].append(vals)
+
+                with open(MEMORY_FILE, "w") as f:
+                    json.dump(memory, f, indent=4)
+
 
 # =========================
 # 📊 EDA REPORT
@@ -183,8 +215,6 @@ elif menu == "EDA Report":
             st.warning("Processed data not available")
         else:
             st.metric("Data Quality Score", data_quality_score(df))
-
-            # 🔥 Full EDA
             detailed_eda(df)
 
 
@@ -205,3 +235,20 @@ elif menu == "Visualization":
         else:
             visualization_dashboard(df)
 
+
+# =========================
+# 🤖 ML MODELS
+# =========================
+elif menu == "ML Models":
+
+    if st.session_state.processed_df is None:
+        st.warning("Please preprocess data first")
+    else:
+        df = st.session_state.processed_df
+
+        st.subheader("🤖 Machine Learning")
+
+        target = st.selectbox("Select Target Column", df.columns)
+
+        if st.button("🚀 Train Models"):
+            auto_train_models(df, target)
