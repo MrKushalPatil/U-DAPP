@@ -4,7 +4,7 @@ import os
 
 from utils.helpers import load_dataset, download_csv
 
-# Backend imports
+
 from backend.column_classifier import detect_column_roles
 from backend.preprocessing import (
     basic_cleaning,
@@ -18,20 +18,16 @@ from backend.ml_engine import auto_train_models
 from backend.report_generator import generate_pdf_report
 
 
-# =========================
-# 🔹 PAGE CONFIG
-# =========================
+
 st.set_page_config(page_title="UDAPP", layout="wide")
 
-# 🔹 Load CSS
+
 with open("assets/styles.css") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 st.title("Universal Data Automation and Preprocessing Platform")
 
-# =========================
-# 🔹 SIDEBAR NAVIGATION
-# =========================
+
 menu = st.sidebar.radio(
     "Navigation",
     ["Upload Data", "Preprocessing", "EDA Report", "Visualization"]
